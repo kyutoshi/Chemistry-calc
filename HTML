@@ -1,0 +1,761 @@
+src/index.html
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Калькулятор растворов</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #151820;
+      --surface2: #1c2030;
+      --border: #252a3a;
+      --accent: #4ff0b7;
+      --accent2: #7b8cff;
+      --warn: #ff6b6b;
+      --text: #e8ecf4;
+      --text-dim: #6b7494;
+      --text-mid: #9da5c2;
+      --mono: 'DM Mono', monospace;
+      --display: 'Playfair Display', serif;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 80px;
+    }
+
+    /* Background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(79, 240, 183, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79, 240, 183, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 680px;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      animation: fadeDown 0.6s ease both;
+    }
+
+    .lab-badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid rgba(79, 240, 183, 0.3);
+      padding: 4px 12px;
+      border-radius: 2px;
+      margin-bottom: 16px;
+      background: rgba(79, 240, 183, 0.05);
+    }
+
+    h1 {
+      font-family: var(--display);
+      font-size: clamp(28px, 5vw, 42px);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    h1 span { color: var(--accent); }
+
+    .subtitle {
+      margin-top: 10px;
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px;
+      margin-bottom: 24px;
+      animation: fadeDown 0.6s 0.1s ease both;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      background: var(--surface2);
+      color: var(--accent);
+      border: 1px solid rgba(79, 240, 183, 0.2);
+    }
+
+    .tab:hover:not(.active) { color: var(--text-mid); }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 28px;
+      margin-bottom: 16px;
+      animation: fadeUp 0.6s 0.2s ease both;
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* Formula display */
+    .formula-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--text-mid);
+    }
+
+    .formula-box .formula-label {
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .formula-box .formula-text {
+      color: var(--accent);
+      font-size: 15px;
+    }
+
+    /* Inputs */
+    .fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field.full { grid-column: 1 / -1; }
+
+    label {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    input, select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+    }
+
+    input:focus, select:focus {
+      border-color: rgba(79, 240, 183, 0.5);
+      box-shadow: 0 0 0 3px rgba(79, 240, 183, 0.08);
+    }
+
+    input.error { border-color: var(--warn); }
+    input.error:focus { box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1); }
+
+    .unit-hint {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--mono);
+    }
+
+    /* Unit toggle */
+    .unit-toggle {
+      display: flex;
+      gap: 4px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px;
+    }
+
+    .unit-btn {
+      flex: 1;
+      padding: 6px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.15s;
+    }
+
+    .unit-btn.active {
+      background: var(--border);
+      color: var(--accent);
+    }
+
+    /* Calculate button */
+    .btn-calc {
+      width: 100%;
+      padding: 14px;
+      background: rgba(79, 240, 183, 0.1);
+      border: 1px solid rgba(79, 240, 183, 0.4);
+      border-radius: 6px;
+      color: var(--accent);
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-calc::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(79,240,183,0.15), transparent);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .btn-calc:hover { border-color: var(--accent); background: rgba(79, 240, 183, 0.15); }
+    .btn-calc:hover::before { opacity: 1; }
+    .btn-calc:active { transform: scale(0.99); }
+
+    /* Error message */
+    .error-msg {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: rgba(255, 107, 107, 0.08);
+      border: 1px solid rgba(255, 107, 107, 0.3);
+      border-radius: 4px;
+      color: var(--warn);
+      font-size: 13px;
+    }
+
+    .error-msg.show { display: flex; }
+
+    /* Result */
+    .result-box {
+      display: none;
+      margin-top: 20px;
+      padding: 20px;
+      background: rgba(79, 240, 183, 0.05);
+      border: 1px solid rgba(79, 240, 183, 0.25);
+      border-radius: 6px;
+      animation: popIn 0.3s ease;
+    }
+
+    .result-box.show { display: block; }
+
+    .result-label {
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    .result-value {
+      font-family: var(--mono);
+      font-size: 32px;
+      font-weight: 500;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 14px;
+    }
+
+    .result-substitution {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text-mid);
+      padding: 10px 14px;
+      background: var(--surface2);
+      border-radius: 4px;
+      line-height: 1.6;
+    }
+
+    /* Warning */
+    .warning-note {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      padding: 12px 16px;
+      background: rgba(123, 140, 255, 0.07);
+      border: 1px solid rgba(123, 140, 255, 0.2);
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    .warning-note .wi { color: var(--accent2); flex-shrink: 0; }
+
+    /* History */
+    .history-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      animation: fadeUp 0.6s 0.3s ease both;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-header h3 {
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .btn-clear {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-clear:hover { color: var(--warn); border-color: rgba(255,107,107,0.4); }
+
+    .history-list { padding: 8px; }
+
+    .history-empty {
+      padding: 24px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 13px;
+      font-family: var(--mono);
+    }
+
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 4px;
+      border-bottom: 1px solid rgba(37,42,58,0.6);
+      animation: fadeIn 0.2s ease;
+    }
+
+    .history-item:last-child { border-bottom: none; }
+    .history-item:hover { background: var(--surface2); }
+
+    .hi-formula {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-mid);
+    }
+
+    .hi-result {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--accent);
+    }
+
+    .hi-time {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    /* Animations */
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.97); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    @media (max-width: 480px) {
+      .fields { grid-template-columns: 1fr; }
+      .field.full { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="lab-badge">⚗ Учебная лаборатория</div>
+    <h1>Калькулятор<br /><span>растворов</span></h1>
+    <p class="subtitle">Расчёт массовой доли и массы вещества</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('tab1', this)">Найти w (%)</button>
+    <button class="tab" onclick="switchTab('tab2', this)">Найти массу вещества</button>
+    <button class="tab" onclick="switchTab('tab3', this)">Найти массу раствора</button>
+  </div>
+
+  <div class="card">
+
+    <!-- TAB 1: find w -->
+    <div class="panel active" id="tab1">
+      <div class="formula-box">
+        <div class="formula-label">Формула</div>
+        <div class="formula-text">w = (m<sub>вещ</sub> / m<sub>р-ра</sub>) × 100%</div>
+      </div>
+      <div class="fields">
+        <div class="field">
+          <label>Масса вещества</label>
+          <input type="number" id="t1_m_solute" placeholder="0.00" min="0" step="any" />
+          <span class="unit-hint" id="t1_unit_label1">граммы (г)</span>
+        </div>
+        <div class="field">
+          <label>Масса раствора</label>
+          <input type="number" id="t1_m_solution" placeholder="0.00" min="0" step="any" />
+          <span class="unit-hint" id="t1_unit_label2">граммы (г)</span>
+        </div>
+        <div class="field full">
+          <label>Единицы измерения</label>
+          <div class="unit-toggle">
+            <button class="unit-btn active" onclick="setUnit('t1', 'г', this)">г</button>
+            <button class="unit-btn" onclick="setUnit('t1', 'кг', this)">кг</button>
+            <button class="unit-btn" onclick="setUnit('t1', 'мг', this)">мг</button>
+          </div>
+        </div>
+      </div>
+      <button class="btn-calc" onclick="calcW()">Рассчитать w (%)</button>
+      <div class="error-msg" id="t1_error">⚠ <span id="t1_error_text"></span></div>
+      <div class="result-box" id="t1_result">
+        <div class="result-label">Массовая доля</div>
+        <div class="result-value" id="t1_result_val"></div>
+        <div class="result-substitution" id="t1_result_sub"></div>
+      </div>
+    </div>
+
+    <!-- TAB 2: find mass of solute -->
+    <div class="panel" id="tab2">
+      <div class="formula-box">
+        <div class="formula-label">Формула</div>
+        <div class="formula-text">m<sub>вещ</sub> = (w × m<sub>р-ра</sub>) / 100</div>
+      </div>
+      <div class="fields">
+        <div class="field">
+          <label>Массовая доля w (%)</label>
+          <input type="number" id="t2_w" placeholder="0.00" min="0" max="100" step="any" />
+        </div>
+        <div class="field">
+          <label>Масса раствора</label>
+          <input type="number" id="t2_m_solution" placeholder="0.00" min="0" step="any" />
+          <span class="unit-hint" id="t2_unit_label">граммы (г)</span>
+        </div>
+        <div class="field full">
+          <label>Единицы измерения</label>
+          <div class="unit-toggle">
+            <button class="unit-btn active" onclick="setUnit('t2', 'г', this)">г</button>
+            <button class="unit-btn" onclick="setUnit('t2', 'кг', this)">кг</button>
+            <button class="unit-btn" onclick="setUnit('t2', 'мг', this)">мг</button>
+          </div>
+        </div>
+      </div>
+      <button class="btn-calc" onclick="calcSolute()">Рассчитать массу вещества</button>
+      <div class="error-msg" id="t2_error">⚠ <span id="t2_error_text"></span></div>
+      <div class="result-box" id="t2_result">
+        <div class="result-label">Масса вещества</div>
+        <div class="result-value" id="t2_result_val"></div>
+        <div class="result-substitution" id="t2_result_sub"></div>
+      </div>
+    </div>
+
+    <!-- TAB 3: find mass of solution -->
+    <div class="panel" id="tab3">
+      <div class="formula-box">
+        <div class="formula-label">Формула</div>
+        <div class="formula-text">m<sub>р-ра</sub> = (m<sub>вещ</sub> × 100) / w</div>
+      </div>
+      <div class="fields">
+        <div class="field">
+          <label>Масса вещества</label>
+          <input type="number" id="t3_m_solute" placeholder="0.00" min="0" step="any" />
+          <span class="unit-hint" id="t3_unit_label">граммы (г)</span>
+        </div>
+        <div class="field">
+          <label>Массовая доля w (%)</label>
+          <input type="number" id="t3_w" placeholder="0.00" min="0" max="100" step="any" />
+        </div>
+        <div class="field full">
+          <label>Единицы измерения</label>
+          <div class="unit-toggle">
+            <button class="unit-btn active" onclick="setUnit('t3', 'г', this)">г</button>
+            <button class="unit-btn" onclick="setUnit('t3', 'кг', this)">кг</button>
+            <button class="unit-btn" onclick="setUnit('t3', 'мг', this)">мг</button>
+          </div>
+        </div>
+      </div>
+      <button class="btn-calc" onclick="calcSolution()">Рассчитать массу раствора</button>
+      <div class="error-msg" id="t3_error">⚠ <span id="t3_error_text"></span></div>
+      <div class="result-box" id="t3_result">
+        <div class="result-label">Масса раствора</div>
+        <div class="result-value" id="t3_result_val"></div>
+        <div class="result-substitution" id="t3_result_sub"></div>
+      </div>
+    </div>
+
+    <div class="warning-note">
+      <span class="wi">ℹ</span>
+      <span>Учебный инструмент. Результаты носят образовательный характер и не заменяют реальные лабораторные методики и технику безопасности.</span>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="history-card">
+    <div class="history-header">
+      <h3>История расчётов</h3>
+      <button class="btn-clear" onclick="clearHistory()">Очистить</button>
+    </div>
+    <div class="history-list" id="history-list">
+      <div class="history-empty" id="history-empty">Расчёты появятся здесь</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // State
+  const units = { t1: 'г', t2: 'г', t3: 'г' };
+  const unitMultipliers = { 'г': 1, 'кг': 1000, 'мг': 0.001 };
+  let history = [];
+
+  // Tab switching
+  function switchTab(id, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+    hideAll();
+  }
+
+  function hideAll() {
+    ['t1','t2','t3'].forEach(t => {
+      hideError(t); hideResult(t);
+      document.querySelectorAll(`#${t} input`).forEach(i => i.classList.remove('error'));
+    });
+  }
+
+  // Unit toggle
+  function setUnit(tab, unit, btn) {
+    units[tab] = unit;
+    btn.closest('.unit-toggle').querySelectorAll('.unit-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const labels = document.querySelectorAll(`[id^="${tab}_unit_label"]`);
+    const names = { 'г': 'граммы (г)', 'кг': 'килограммы (кг)', 'мг': 'миллиграммы (мг)' };
+    labels.forEach(l => l.textContent = names[unit]);
+  }
+
+  // Error / result helpers
+  function showError(tab, msg) {
+    const el = document.getElementById(`${tab}_error`);
+    document.getElementById(`${tab}_error_text`).textContent = msg;
+    el.classList.add('show');
+  }
+  function hideError(tab) { document.getElementById(`${tab}_error`)?.classList.remove('show'); }
+  function showResult(tab, val, sub) {
+    document.getElementById(`${tab}_result`).classList.add('show');
+    document.getElementById(`${tab}_result_val`).textContent = val;
+    document.getElementById(`${tab}_result_sub`).innerHTML = sub;
+  }
+  function hideResult(tab) { document.getElementById(`${tab}_result`)?.classList.remove('show'); }
+
+  // Validation
+  function validate(val, name, allowZero = false) {
+    if (val === '' || val === null || isNaN(Number(val))) return `Введите значение для "${name}"`;
+    if (Number(val) < 0) return `"${name}" не может быть отрицательным`;
+    if (!allowZero && Number(val) === 0) return `"${name}" не может быть равно нулю`;
+    return null;
+  }
+
+  function toGrams(val, tab) { return Number(val) * unitMultipliers[units[tab]]; }
+  function fmt(n) { return n % 1 === 0 ? n.toString() : n.toFixed(4).replace(/\.?0+$/, ''); }
+
+  // Calc 1: find w
+  function calcW() {
+    hideError('t1'); hideResult('t1');
+    const ms = document.getElementById('t1_m_solute').value;
+    const mr = document.getElementById('t1_m_solution').value;
+    const err1 = validate(ms, 'Масса вещества', true);
+    const err2 = validate(mr, 'Масса раствора');
+    if (err1) { showError('t1', err1); document.getElementById('t1_m_solute').classList.add('error'); return; }
+    if (err2) { showError('t1', err2); document.getElementById('t1_m_solution').classList.add('error'); return; }
+    document.querySelectorAll('#tab1 input').forEach(i => i.classList.remove('error'));
+
+    const mSolute = toGrams(ms, 't1');
+    const mSol = toGrams(mr, 't1');
+    if (mSolute > mSol) { showError('t1', 'Масса вещества не может превышать массу раствора'); document.getElementById('t1_m_solute').classList.add('error'); return; }
+
+    const w = (mSolute / mSol) * 100;
+    const u = units['t1'];
+    const result = `w = ${fmt(w)}%`;
+    const sub = `w = (${fmt(Number(ms))} ${u} / ${fmt(Number(mr))} ${u}) × 100% = <b style="color:var(--accent)">${fmt(w)}%</b>`;
+    showResult('t1', `w = ${fmt(w)}%`, sub);
+    addHistory(`m=${fmt(Number(ms))}${u}, M=${fmt(Number(mr))}${u}`, `w = ${fmt(w)}%`);
+  }
+
+  // Calc 2: find mass of solute
+  function calcSolute() {
+    hideError('t2'); hideResult('t2');
+    const w = document.getElementById('t2_w').value;
+    const mr = document.getElementById('t2_m_solution').value;
+    const err1 = validate(w, 'Массовая доля w');
+    const err2 = validate(mr, 'Масса раствора');
+    if (err1) { showError('t2', err1); document.getElementById('t2_w').classList.add('error'); return; }
+    if (err2) { showError('t2', err2); document.getElementById('t2_m_solution').classList.add('error'); return; }
+    if (Number(w) > 100) { showError('t2', 'Массовая доля не может быть больше 100%'); document.getElementById('t2_w').classList.add('error'); return; }
+    document.querySelectorAll('#tab2 input').forEach(i => i.classList.remove('error'));
+
+    const mSol = toGrams(mr, 't2');
+    const mSolute = (Number(w) * mSol) / 100;
+    const u = units['t2'];
+    const mSoluteDisplay = mSolute / unitMultipliers[u];
+    const sub = `m<sub>вещ</sub> = (${fmt(Number(w))}% × ${fmt(Number(mr))} ${u}) / 100 = <b style="color:var(--accent)">${fmt(mSoluteDisplay)} ${u}</b>`;
+    showResult('t2', `${fmt(mSoluteDisplay)} ${u}`, sub);
+    addHistory(`w=${fmt(Number(w))}%, M=${fmt(Number(mr))}${u}`, `m = ${fmt(mSoluteDisplay)} ${u}`);
+  }
+
+  // Calc 3: find mass of solution
+  function calcSolution() {
+    hideError('t3'); hideResult('t3');
+    const ms = document.getElementById('t3_m_solute').value;
+    const w = document.getElementById('t3_w').value;
+    const err1 = validate(ms, 'Масса вещества', true);
+    const err2 = validate(w, 'Массовая доля w');
+    if (err1) { showError('t3', err1); document.getElementById('t3_m_solute').classList.add('error'); return; }
+    if (err2) { showError('t3', err2); document.getElementById('t3_w').classList.add('error'); return; }
+    if (Number(w) > 100) { showError('t3', 'Массовая доля не может быть больше 100%'); document.getElementById('t3_w').classList.add('error'); return; }
+    document.querySelectorAll('#tab3 input').forEach(i => i.classList.remove('error'));
+
+    const mSolute = toGrams(ms, 't3');
+    const mSol = (mSolute * 100) / Number(w);
+    const u = units['t3'];
+    const mSolDisplay = mSol / unitMultipliers[u];
+    const sub = `m<sub>р-ра</sub> = (${fmt(Number(ms))} ${u} × 100) / ${fmt(Number(w))}% = <b style="color:var(--accent)">${fmt(mSolDisplay)} ${u}</b>`;
+    showResult('t3', `${fmt(mSolDisplay)} ${u}`, sub);
+    addHistory(`m=${fmt(Number(ms))}${u}, w=${fmt(Number(w))}%`, `M = ${fmt(mSolDisplay)} ${u}`);
+  }
+
+  // History
+  function addHistory(formula, result) {
+    const now = new Date();
+    const time = now.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    history.unshift({ formula, result, time });
+    if (history.length > 10) history.pop();
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const list = document.getElementById('history-list');
+    const empty = document.getElementById('history-empty');
+    if (history.length === 0) { empty.style.display = 'block'; list.innerHTML = ''; list.appendChild(empty); return; }
+    empty.style.display = 'none';
+    const items = history.map(h => `
+      <div class="history-item">
+        <div>
+          <div class="hi-formula">${h.formula}</div>
+          <div class="hi-time">${h.time}</div>
+        </div>
+        <div class="hi-result">${h.result}</div>
+      </div>
+    `).join('');
+    list.innerHTML = items;
+  }
+
+  function clearHistory() {
+    history = [];
+    const list = document.getElementById('history-list');
+    list.innerHTML = '';
+    const empty = document.getElementById('history-empty');
+    empty.style.display = 'block';
+    list.appendChild(empty);
+  }
+
+  // Enter key support
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const active = document.querySelector('.panel.active');
+    if (!active) return;
+    active.querySelector('.btn-calc')?.click();
+  });
+</script>
+</body>
+</html>
